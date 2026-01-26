@@ -1,19 +1,21 @@
 <div align="center">
   <img src="logo.png" alt="mcp-image-tools" width="512"/>
 
+  # mcp-image-tools
+
   [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
   [![MCP](https://img.shields.io/badge/MCP-1.2+-green.svg)](https://modelcontextprotocol.io)
   [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-  **🖼️ Image processing tools for Claude Code — chromakey transparency, resize, compress, and convert images via MCP**
+  **🖼️ Image processing tools for Claude Code — chromakey, resize, compress, and convert images via MCP**
 
   [Tools](#tools) · [Quick Start](#quick-start) · [Usage](#usage)
 </div>
 
 ## Features
 
-- ✨ **Chromakey to Transparent** — Professional-quality green screen removal with graduated alpha blending
-- 📐 **Resize** — Scale by dimensions or factor with aspect ratio control
+- ✨ **Chromakey to Transparent** — Professional green screen removal with graduated alpha blending
+- 📐 **Resize** — Scale by dimensions or factor with aspect ratio control and Lanczos resampling
 - 🗜️ **Compress** — PNG optimization via pngquant (graceful degradation if not installed)
 - 🔄 **Convert** — Transform between PNG, JPEG, WebP, GIF, and BMP formats
 - 📊 **Metadata** — Extract format, dimensions, and transparency info
@@ -34,6 +36,11 @@ claude mcp add image-tools -- uv run --directory /path/to/mcp-image-tools mcp-im
 | `compress_png` | Optimize PNG files using pngquant |
 | `convert_format` | Convert between image formats (PNG/JPEG/WebP/GIF/BMP) |
 | `get_image_metadata` | Get format, dimensions, mode, and transparency info |
+
+## Requirements
+
+- Python 3.10+
+- [pngquant](https://pngquant.org/) (optional, for PNG compression)
 
 ## Installation
 
@@ -161,4 +168,4 @@ uv run mcp-image-tools
 
 ## License
 
-MIT
+[MIT](LICENSE)
