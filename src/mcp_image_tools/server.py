@@ -1,9 +1,12 @@
 """MCP server for image processing tools."""
 
 import json
+import os
 import shutil
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Generator
 
 from mcp.server.fastmcp import FastMCP
 from PIL import Image as PILImage
@@ -31,6 +34,34 @@ def save_image_to_path(img: PILImage.Image, output_path: Path, format: str, **sa
         "size_bytes": size_bytes,
         "dimensions": {"width": img.width, "height": img.height}
     }
+
+
+@contextmanager
+def safe_output_path(input_path: Path, output_path: Path) -> Generator[Path, None, None]:
+    """Context manager for safe file operations where input and output may be the same.
+
+    Yields the path to write to. If input and output are the same, yields a temp file
+    and handles atomic replacement on success, cleanup on failure.
+    """
+    same_path = input_path.resolve() == output_path.resolve()
+
+    if not same_path:
+        yield output_path
+        return
+
+    # Same path - use temp file in same directory for atomic move
+    fd, temp_path_str = tempfile.mkstemp(suffix=output_path.suffix, dir=output_path.parent)
+    os.close(fd)
+    temp_path = Path(temp_path_str)
+
+    try:
+        yield temp_path
+        # Success - atomic replace
+        shutil.move(str(temp_path), str(output_path))
+    finally:
+        # Cleanup temp file if still exists (failure case)
+        if temp_path.exists():
+            temp_path.unlink()
 
 
 @mcp.tool()
@@ -89,7 +120,9 @@ def chromakey_to_transparent(
                 pixels[x, y] = (r, g, b, min(255, alpha))
             pixels_processed += 1
 
-    result = save_image_to_path(img, output_file, "PNG")
+    with safe_output_path(input_file, output_file) as actual_output:
+        result = save_image_to_path(img, actual_output, "PNG")
+    result["output_path"] = str(output_file)
     result.update({
         "key_color": key_color,
         "tolerance": tolerance,
@@ -124,16 +157,17 @@ def compress_png(
     if not input_file.exists():
         return json.dumps({"error": f"Input file not found: {input_file}"})
 
-    # Copy to output path first
-    shutil.copy(input_file, output_file)
-    original_size = output_file.stat().st_size
+    with safe_output_path(input_file, output_file) as actual_output:
+        # Copy to output path first
+        shutil.copy(input_file, actual_output)
+        original_size = actual_output.stat().st_size
 
-    if is_pngquant_available():
-        original_size, compressed_size = run_pngquant(output_file, quality)
-        compressed = original_size != compressed_size
-    else:
-        compressed_size = original_size
-        compressed = False
+        if is_pngquant_available():
+            original_size, compressed_size = run_pngquant(actual_output, quality)
+            compressed = original_size != compressed_size
+        else:
+            compressed_size = original_size
+            compressed = False
 
     reduction = (1 - compressed_size / original_size) * 100 if original_size > 0 else 0
 
@@ -273,7 +307,9 @@ def resize_image(
 
     save_kwargs = {"quality": 95} if output_format in ("JPEG", "WEBP") else {}
 
-    result = save_image_to_path(resized, output_file, output_format, **save_kwargs)
+    with safe_output_path(input_file, output_file) as actual_output:
+        result = save_image_to_path(resized, actual_output, output_format, **save_kwargs)
+    result["output_path"] = str(output_file)
     result.update({
         "original_dimensions": {"width": original_width, "height": original_height},
         "resample": resample
@@ -330,7 +366,9 @@ def convert_format(
     if output_format in ("JPEG", "WEBP"):
         save_kwargs["quality"] = quality
 
-    result = save_image_to_path(img, output_file, output_format, **save_kwargs)
+    with safe_output_path(input_file, output_file) as actual_output:
+        result = save_image_to_path(img, actual_output, output_format, **save_kwargs)
+    result["output_path"] = str(output_file)
     result["original_format"] = original_format
     return json.dumps(result, indent=2)
 

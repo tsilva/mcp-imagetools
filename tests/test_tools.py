@@ -336,6 +336,114 @@ class TestAbsolutePathValidation:
         assert "absolute path" in metadata["error"]
 
 
+class TestSameInputOutputPath:
+    """Test that tools work when input and output paths are the same."""
+
+    def test_resize_image_same_path(self):
+        from mcp_image_tools.server import resize_image
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            img_path = Path(tmpdir) / "image.png"
+            create_test_image(img_path, size=(200, 100))
+
+            # Resize in place
+            result = resize_image(str(img_path), str(img_path), scale=0.5)
+
+            metadata = json.loads(result)
+            assert "error" not in metadata
+            assert metadata["dimensions"]["width"] == 100
+            assert metadata["dimensions"]["height"] == 50
+            # Compare resolved paths to handle symlinks like /var -> /private/var on macOS
+            assert Path(metadata["output_path"]).resolve() == img_path.resolve()
+
+            # Verify the file was actually modified
+            img = PILImage.open(img_path)
+            assert img.size == (100, 50)
+
+    def test_convert_format_same_path_png(self):
+        from mcp_image_tools.server import convert_format
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            img_path = Path(tmpdir) / "image.png"
+            create_test_image(img_path, size=(100, 100))
+
+            # Re-save as PNG (no-op format but should work)
+            result = convert_format(str(img_path), str(img_path))
+
+            metadata = json.loads(result)
+            assert "error" not in metadata
+            assert metadata["format"] == "PNG"
+            # Compare resolved paths to handle symlinks like /var -> /private/var on macOS
+            assert Path(metadata["output_path"]).resolve() == img_path.resolve()
+            assert img_path.exists()
+
+    def test_chromakey_same_path(self):
+        from mcp_image_tools.server import chromakey_to_transparent
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            img_path = Path(tmpdir) / "image.png"
+            create_chromakey_test_image(img_path)
+
+            # Chromakey in place
+            result = chromakey_to_transparent(str(img_path), str(img_path))
+
+            metadata = json.loads(result)
+            assert "error" not in metadata
+            assert metadata["pixels_made_transparent"] > 0
+            # Compare resolved paths to handle symlinks like /var -> /private/var on macOS
+            assert Path(metadata["output_path"]).resolve() == img_path.resolve()
+
+            # Verify the file was actually modified with transparency
+            img = PILImage.open(img_path)
+            assert img.mode == 'RGBA'
+            pixels = img.load()
+            # Corner should be transparent (was green)
+            assert pixels[0, 0][3] == 0
+
+    def test_compress_png_same_path(self):
+        from mcp_image_tools.server import compress_png
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            img_path = Path(tmpdir) / "image.png"
+            create_test_image(img_path, size=(100, 100))
+
+            # Compress in place
+            result = compress_png(str(img_path), str(img_path))
+
+            metadata = json.loads(result)
+            assert "error" not in metadata
+            assert metadata["format"] == "PNG"
+            # Compare resolved paths to handle symlinks like /var -> /private/var on macOS
+            assert Path(metadata["output_path"]).resolve() == img_path.resolve()
+            assert img_path.exists()
+
+            # Verify it's still a valid PNG
+            img = PILImage.open(img_path)
+            assert img.format == "PNG"
+
+    def test_same_path_preserves_content_on_success(self):
+        """Verify that same-path operations preserve expected content."""
+        from mcp_image_tools.server import resize_image
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            img_path = Path(tmpdir) / "image.png"
+            # Create a distinctive image (red)
+            create_test_image(img_path, color=(255, 0, 0), size=(100, 100))
+
+            result = resize_image(str(img_path), str(img_path), scale=0.5)
+
+            metadata = json.loads(result)
+            assert "error" not in metadata
+
+            # Verify the resized image still has red content
+            img = PILImage.open(img_path)
+            assert img.size == (50, 50)
+            pixels = img.load()
+            # Center pixel should still be red
+            r, g, b = pixels[25, 25][:3]
+            assert r > 200 and g < 50 and b < 50
+
+
 class TestWorkflow:
     """Test end-to-end workflows."""
 
