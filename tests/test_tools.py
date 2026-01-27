@@ -5,19 +5,19 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image as PILImage
 
 
 def create_test_image(path: Path, color: tuple = (0, 255, 0), size: tuple = (100, 100), mode: str = 'RGB'):
     """Create a solid color test image."""
-    img = Image.new(mode, size, color)
+    img = PILImage.new(mode, size, color)
     img.save(path)
     return img
 
 
 def create_chromakey_test_image(path: Path):
     """Create an image with green background and red foreground."""
-    img = Image.new('RGB', (100, 100), (0, 255, 0))  # Green background
+    img = PILImage.new('RGB', (100, 100), (0, 255, 0))  # Green background
     # Draw a red square in the center
     pixels = img.load()
     for y in range(30, 70):
@@ -63,23 +63,21 @@ class TestChromakeyToTransparent:
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
             output_path = Path(tmpdir) / "output.png"
-
             create_chromakey_test_image(input_path)
 
-            result = json.loads(chromakey_to_transparent(
-                str(input_path),
-                str(output_path)
-            ))
+            result = chromakey_to_transparent(str(input_path), str(output_path))
 
-            assert result["success"] is True
+            metadata = json.loads(result)
+            assert "output_path" in metadata
+            assert metadata["pixels_made_transparent"] > 0
+
+            # Verify output file exists and has correct content
             assert output_path.exists()
-
-            # Verify transparency was applied
-            output_img = Image.open(output_path)
-            assert output_img.mode == 'RGBA'
+            img = PILImage.open(output_path)
+            assert img.mode == 'RGBA'
 
             # Check that green pixels became transparent
-            pixels = output_img.load()
+            pixels = img.load()
             # Corner should be transparent (was green)
             assert pixels[0, 0][3] == 0
             # Center should be opaque (was red)
@@ -91,18 +89,23 @@ class TestChromakeyToTransparent:
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
             output_path = Path(tmpdir) / "output.png"
-
             # Create blue background image
             create_test_image(input_path, color=(0, 0, 255))
 
-            result = json.loads(chromakey_to_transparent(
-                str(input_path),
-                str(output_path),
-                key_color="#0000FF"
-            ))
+            result = chromakey_to_transparent(str(input_path), str(output_path), key_color="#0000FF")
 
-            assert result["success"] is True
-            assert result["key_color"] == "#0000FF"
+            metadata = json.loads(result)
+            assert metadata["key_color"] == "#0000FF"
+            assert output_path.exists()
+
+    def test_file_not_found(self):
+        from mcp_image_tools.server import chromakey_to_transparent
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "output.png"
+            result = chromakey_to_transparent("/nonexistent/image.png", str(output_path))
+            metadata = json.loads(result)
+            assert "error" in metadata
 
 
 class TestGetImageMetadata:
@@ -127,7 +130,7 @@ class TestGetImageMetadata:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create image with transparency
             img_path = Path(tmpdir) / "transparent.png"
-            img = Image.new('RGBA', (50, 50), (255, 0, 0, 128))
+            img = PILImage.new('RGBA', (50, 50), (255, 0, 0, 128))
             img.save(img_path)
 
             result = json.loads(get_image_metadata(str(img_path)))
@@ -150,18 +153,18 @@ class TestResizeImage:
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
             output_path = Path(tmpdir) / "output.png"
-
             create_test_image(input_path, size=(200, 100))
 
-            result = json.loads(resize_image(
-                str(input_path),
-                str(output_path),
-                width=100
-            ))
+            result = resize_image(str(input_path), str(output_path), width=100)
 
-            assert result["success"] is True
-            assert result["new_dimensions"]["width"] == 100
-            assert result["new_dimensions"]["height"] == 50  # Aspect ratio maintained
+            metadata = json.loads(result)
+            assert metadata["dimensions"]["width"] == 100
+            assert metadata["dimensions"]["height"] == 50  # Aspect ratio maintained
+
+            # Verify output file
+            assert output_path.exists()
+            img = PILImage.open(output_path)
+            assert img.size == (100, 50)
 
     def test_resize_by_scale(self):
         from mcp_image_tools.server import resize_image
@@ -169,18 +172,39 @@ class TestResizeImage:
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
             output_path = Path(tmpdir) / "output.png"
-
             create_test_image(input_path, size=(100, 100))
 
-            result = json.loads(resize_image(
-                str(input_path),
-                str(output_path),
-                scale=2.0
-            ))
+            result = resize_image(str(input_path), str(output_path), scale=2.0)
 
-            assert result["success"] is True
-            assert result["new_dimensions"]["width"] == 200
-            assert result["new_dimensions"]["height"] == 200
+            metadata = json.loads(result)
+            assert metadata["dimensions"]["width"] == 200
+            assert metadata["dimensions"]["height"] == 200
+
+            img = PILImage.open(output_path)
+            assert img.size == (200, 200)
+
+    def test_resize_to_jpeg(self):
+        from mcp_image_tools.server import resize_image
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_path = Path(tmpdir) / "input.png"
+            output_path = Path(tmpdir) / "output.jpg"
+            create_test_image(input_path, size=(100, 100))
+
+            result = resize_image(str(input_path), str(output_path), width=50)
+
+            metadata = json.loads(result)
+            assert metadata["format"] == "JPEG"
+            assert output_path.exists()
+
+    def test_file_not_found(self):
+        from mcp_image_tools.server import resize_image
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "output.png"
+            result = resize_image("/nonexistent/image.png", str(output_path), width=100)
+            metadata = json.loads(result)
+            assert "error" in metadata
 
 
 class TestConvertFormat:
@@ -192,14 +216,16 @@ class TestConvertFormat:
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
             output_path = Path(tmpdir) / "output.jpg"
-
             create_test_image(input_path)
 
-            result = json.loads(convert_format(str(input_path), str(output_path)))
+            result = convert_format(str(input_path), str(output_path))
 
-            assert result["success"] is True
-            assert result["new_format"] == "JPEG"
-            assert output_path.exists()
+            metadata = json.loads(result)
+            assert metadata["format"] == "JPEG"
+            assert metadata["original_format"] == "PNG"
+
+            img = PILImage.open(output_path)
+            assert img.format == "JPEG"
 
     def test_handles_transparency_to_jpeg(self):
         from mcp_image_tools.server import convert_format
@@ -207,12 +233,132 @@ class TestConvertFormat:
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
             output_path = Path(tmpdir) / "output.jpg"
-
             # Create RGBA image with transparency
-            img = Image.new('RGBA', (50, 50), (255, 0, 0, 128))
+            img = PILImage.new('RGBA', (50, 50), (255, 0, 0, 128))
             img.save(input_path)
 
-            result = json.loads(convert_format(str(input_path), str(output_path)))
+            result = convert_format(str(input_path), str(output_path))
 
-            assert result["success"] is True
             # Should convert without error (transparency composited on white)
+            metadata = json.loads(result)
+            assert metadata["format"] == "JPEG"
+            assert output_path.exists()
+
+    def test_invalid_format(self):
+        from mcp_image_tools.server import convert_format
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_path = Path(tmpdir) / "input.png"
+            output_path = Path(tmpdir) / "output.xyz"
+            create_test_image(input_path)
+
+            result = convert_format(str(input_path), str(output_path))
+
+            metadata = json.loads(result)
+            assert "error" in metadata
+
+
+class TestCompressPng:
+    """Test PNG compression."""
+
+    def test_compress_saves_to_output(self):
+        from mcp_image_tools.server import compress_png
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_path = Path(tmpdir) / "input.png"
+            output_path = Path(tmpdir) / "output.png"
+            create_test_image(input_path, size=(100, 100))
+
+            result = compress_png(str(input_path), str(output_path))
+
+            metadata = json.loads(result)
+            assert "original_size" in metadata
+            assert metadata["format"] == "PNG"
+            assert output_path.exists()
+
+            # Verify output is valid PNG
+            img = PILImage.open(output_path)
+            assert img.format == "PNG"
+
+    def test_file_not_found(self):
+        from mcp_image_tools.server import compress_png
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "output.png"
+            result = compress_png("/nonexistent/image.png", str(output_path))
+            metadata = json.loads(result)
+            assert "error" in metadata
+
+
+class TestAbsolutePathValidation:
+    """Test that all tools require absolute paths."""
+
+    def test_chromakey_rejects_relative_input(self):
+        from mcp_image_tools.server import chromakey_to_transparent
+        result = chromakey_to_transparent("relative/input.png", "/absolute/output.png")
+        metadata = json.loads(result)
+        assert "error" in metadata
+        assert "absolute path" in metadata["error"]
+
+    def test_chromakey_rejects_relative_output(self):
+        from mcp_image_tools.server import chromakey_to_transparent
+        result = chromakey_to_transparent("/absolute/input.png", "relative/output.png")
+        metadata = json.loads(result)
+        assert "error" in metadata
+        assert "absolute path" in metadata["error"]
+
+    def test_compress_png_rejects_relative_paths(self):
+        from mcp_image_tools.server import compress_png
+        result = compress_png("relative/input.png", "/absolute/output.png")
+        metadata = json.loads(result)
+        assert "error" in metadata
+        assert "absolute path" in metadata["error"]
+
+    def test_get_image_metadata_rejects_relative_path(self):
+        from mcp_image_tools.server import get_image_metadata
+        result = get_image_metadata("relative/image.png")
+        metadata = json.loads(result)
+        assert "error" in metadata
+        assert "absolute path" in metadata["error"]
+
+    def test_resize_image_rejects_relative_paths(self):
+        from mcp_image_tools.server import resize_image
+        result = resize_image("relative/input.png", "/absolute/output.png", width=100)
+        metadata = json.loads(result)
+        assert "error" in metadata
+        assert "absolute path" in metadata["error"]
+
+    def test_convert_format_rejects_relative_paths(self):
+        from mcp_image_tools.server import convert_format
+        result = convert_format("relative/input.png", "/absolute/output.jpg")
+        metadata = json.loads(result)
+        assert "error" in metadata
+        assert "absolute path" in metadata["error"]
+
+
+class TestWorkflow:
+    """Test end-to-end workflows."""
+
+    def test_resize_then_convert(self):
+        """Test: resize_image → convert_format (chaining)."""
+        from mcp_image_tools.server import resize_image, convert_format
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_path = Path(tmpdir) / "input.png"
+            resized_path = Path(tmpdir) / "resized.png"
+            final_path = Path(tmpdir) / "final.jpg"
+            create_test_image(input_path, size=(200, 200))
+
+            # Resize
+            resize_image(str(input_path), str(resized_path), width=100)
+            assert resized_path.exists()
+
+            # Convert
+            result = convert_format(str(resized_path), str(final_path))
+            metadata = json.loads(result)
+            assert metadata["format"] == "JPEG"
+
+            # Verify final result
+            img = PILImage.open(final_path)
+            assert img.format == "JPEG"
+            assert img.size == (100, 100)

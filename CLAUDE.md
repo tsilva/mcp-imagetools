@@ -4,25 +4,31 @@ MCP server providing image processing tools for Claude Code.
 
 ## Tools
 
+**All paths must be absolute** (e.g., `/Users/me/image.png`, not `./image.png`).
+
 | Tool | Description |
 |------|-------------|
-| `chromakey_to_transparent` | Convert green screen backgrounds to transparency with professional-quality edge blending |
-| `compress_png` | Optimize PNG files using pngquant (graceful degradation if not installed) |
+| `chromakey_to_transparent` | Convert green screen to transparency |
+| `compress_png` | Optimize PNG using pngquant |
+| `resize_image` | Resize by dimensions or scale |
+| `convert_format` | Convert between formats (extension determines output format) |
 | `get_image_metadata` | Get format, dimensions, transparency info |
-| `resize_image` | Resize by dimensions or scale factor with aspect ratio control |
-| `convert_format` | Convert between PNG/JPEG/WebP/GIF/BMP |
+
+All processing tools take `input_path` and `output_path` parameters and return JSON metadata.
+
+## Example
+
+```python
+resize_image("/path/to/photo.png", "/path/to/thumb.png", width=200)
+convert_format("/path/to/thumb.png", "/path/to/thumb.jpg")
+```
 
 ## Development
 
 ```bash
-# Install dependencies
-uv sync
-
-# Run tests
-uv run pytest tests/ -v
-
-# Run server
-uv run mcp-image-tools
+uv sync                       # Install dependencies
+uv run pytest tests/ -v       # Run tests
+uv run mcp-image-tools        # Run server
 ```
 
 ## Adding to Claude Code
@@ -33,9 +39,9 @@ claude mcp add image-tools --scope user -- uv run --directory /path/to/mcp-image
 
 ## Chromakey Algorithm
 
-The chromakey tool uses Euclidean distance in RGB color space:
+Uses Euclidean distance in RGB color space:
 - Distance < tolerance: Full transparency (alpha = 0)
 - Distance < tolerance*3: Graduated alpha for smooth edges
 - Distance >= tolerance*3: Fully opaque
 
-Default key color is `#00FF00` (green) with tolerance of 70.
+Default: `#00FF00` (green) with tolerance of 70.

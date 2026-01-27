@@ -1,15 +1,36 @@
 """MCP server for image processing tools."""
 
 import json
+import shutil
 from pathlib import Path
 from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
-from PIL import Image
+from PIL import Image as PILImage
 
 from .utils import parse_hex_color, color_distance, is_pngquant_available, run_pngquant
 
 mcp = FastMCP("mcp-image-tools")
+
+
+def validate_absolute_path(path: str, param_name: str) -> tuple[Path, str | None]:
+    """Validate that a path is absolute. Returns (resolved Path, error_json) where error_json is None if valid."""
+    p = Path(path)
+    if not p.is_absolute():
+        return p, json.dumps({"error": f"{param_name} must be an absolute path, got: {path}"})
+    return p.resolve(), None
+
+
+def save_image_to_path(img: PILImage.Image, output_path: Path, format: str, **save_kwargs) -> dict:
+    """Save PIL image to disk and return metadata."""
+    img.save(output_path, format=format, **save_kwargs)
+    size_bytes = output_path.stat().st_size
+    return {
+        "output_path": str(output_path),
+        "format": format,
+        "size_bytes": size_bytes,
+        "dimensions": {"width": img.width, "height": img.height}
+    }
 
 
 @mcp.tool()
@@ -25,13 +46,17 @@ def chromakey_to_transparent(
     to avoid "halo" artifacts around edges.
 
     Args:
-        input_path: Path to input image
-        output_path: Path to save transparent PNG
+        input_path: Absolute path to input image
+        output_path: Absolute path to save transparent PNG
         key_color: Hex color of background to remove (default: #00FF00 green)
         tolerance: Color matching tolerance 0-255 (default: 70)
     """
-    input_file = Path(input_path).resolve()
-    output_file = Path(output_path).resolve()
+    input_file, err = validate_absolute_path(input_path, "input_path")
+    if err:
+        return err
+    output_file, err = validate_absolute_path(output_path, "output_path")
+    if err:
+        return err
 
     if not input_file.exists():
         return json.dumps({"error": f"Input file not found: {input_file}"})
@@ -41,12 +66,11 @@ def chromakey_to_transparent(
     except ValueError as e:
         return json.dumps({"error": str(e)})
 
-    img = Image.open(input_file)
+    img = PILImage.open(input_file)
     if img.mode != 'RGBA':
         img = img.convert('RGBA')
 
     pixels = img.load()
-    kr, kg, kb = key_rgb
     pixels_processed = 0
     pixels_transparent = 0
 
@@ -65,24 +89,20 @@ def chromakey_to_transparent(
                 pixels[x, y] = (r, g, b, min(255, alpha))
             pixels_processed += 1
 
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    img.save(output_file, format='PNG')
-
-    return json.dumps({
-        "success": True,
-        "output_path": str(output_file),
-        "dimensions": {"width": img.width, "height": img.height},
+    result = save_image_to_path(img, output_file, "PNG")
+    result.update({
         "key_color": key_color,
         "tolerance": tolerance,
         "pixels_processed": pixels_processed,
         "pixels_made_transparent": pixels_transparent
-    }, indent=2)
+    })
+    return json.dumps(result, indent=2)
 
 
 @mcp.tool()
 def compress_png(
     input_path: str,
-    output_path: Optional[str] = None,
+    output_path: str,
     quality: int = 80
 ) -> str:
     """Compress PNG using pngquant (if available).
@@ -90,45 +110,46 @@ def compress_png(
     Gracefully degrades if pngquant is not installed.
 
     Args:
-        input_path: Path to PNG file
-        output_path: Output path (default: overwrite input)
+        input_path: Absolute path to PNG file
+        output_path: Absolute path to save compressed PNG
         quality: Quality level 1-100 (default: 80)
     """
-    input_file = Path(input_path).resolve()
+    input_file, err = validate_absolute_path(input_path, "input_path")
+    if err:
+        return err
+    output_file, err = validate_absolute_path(output_path, "output_path")
+    if err:
+        return err
 
     if not input_file.exists():
         return json.dumps({"error": f"Input file not found: {input_file}"})
 
-    if output_path:
-        output_file = Path(output_path).resolve()
-        # Copy to output location first
-        import shutil
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(input_file, output_file)
-        target_file = output_file
+    # Copy to output path first
+    shutil.copy(input_file, output_file)
+    original_size = output_file.stat().st_size
+
+    if is_pngquant_available():
+        original_size, compressed_size = run_pngquant(output_file, quality)
+        compressed = original_size != compressed_size
     else:
-        target_file = input_file
+        compressed_size = original_size
+        compressed = False
 
-    if not is_pngquant_available():
-        return json.dumps({
-            "success": True,
-            "compressed": False,
-            "reason": "pngquant not installed",
-            "output_path": str(target_file),
-            "original_size": target_file.stat().st_size
-        }, indent=2)
-
-    original_size, compressed_size = run_pngquant(target_file, quality)
     reduction = (1 - compressed_size / original_size) * 100 if original_size > 0 else 0
 
-    return json.dumps({
-        "success": True,
-        "compressed": original_size != compressed_size,
-        "output_path": str(target_file),
+    metadata = {
+        "output_path": str(output_file),
+        "format": "PNG",
+        "compressed": compressed,
         "original_size": original_size,
-        "compressed_size": compressed_size,
+        "size_bytes": compressed_size,
         "reduction_percent": round(reduction, 1)
-    }, indent=2)
+    }
+
+    if not is_pngquant_available():
+        metadata["note"] = "pngquant not installed - returning original"
+
+    return json.dumps(metadata, indent=2)
 
 
 @mcp.tool()
@@ -136,15 +157,17 @@ def get_image_metadata(image_path: str) -> str:
     """Get metadata about an image file.
 
     Args:
-        image_path: Path to image file
+        image_path: Absolute path to image file
     """
-    file_path = Path(image_path).resolve()
+    file_path, err = validate_absolute_path(image_path, "image_path")
+    if err:
+        return err
 
     if not file_path.exists():
         return json.dumps({"error": f"File not found: {file_path}"})
 
     try:
-        img = Image.open(file_path)
+        img = PILImage.open(file_path)
 
         has_transparency = False
         if img.mode == 'RGBA':
@@ -181,31 +204,40 @@ def resize_image(
     """Resize an image by dimensions or scale factor.
 
     Args:
-        input_path: Path to input image
-        output_path: Path to save resized image
+        input_path: Absolute path to input image
+        output_path: Absolute path to save resized image
         width: Target width in pixels
         height: Target height in pixels
         scale: Scale factor (e.g., 0.5 for half size, 2.0 for double)
         maintain_aspect: Keep aspect ratio when only width or height given (default: True)
         resample: Resampling filter: nearest, bilinear, bicubic, lanczos (default: lanczos)
     """
-    input_file = Path(input_path).resolve()
-    output_file = Path(output_path).resolve()
+    input_file, err = validate_absolute_path(input_path, "input_path")
+    if err:
+        return err
+    output_file, err = validate_absolute_path(output_path, "output_path")
+    if err:
+        return err
 
     if not input_file.exists():
         return json.dumps({"error": f"Input file not found: {input_file}"})
 
     resample_filters = {
-        "nearest": Image.Resampling.NEAREST,
-        "bilinear": Image.Resampling.BILINEAR,
-        "bicubic": Image.Resampling.BICUBIC,
-        "lanczos": Image.Resampling.LANCZOS
+        "nearest": PILImage.Resampling.NEAREST,
+        "bilinear": PILImage.Resampling.BILINEAR,
+        "bicubic": PILImage.Resampling.BICUBIC,
+        "lanczos": PILImage.Resampling.LANCZOS
     }
 
     if resample.lower() not in resample_filters:
         return json.dumps({"error": f"Invalid resample filter. Use: {list(resample_filters.keys())}"})
 
-    img = Image.open(input_file)
+    # Determine output format from extension
+    ext_to_format = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".webp": "WEBP", ".gif": "GIF", ".bmp": "BMP"}
+    output_ext = output_file.suffix.lower()
+    output_format = ext_to_format.get(output_ext, "PNG")
+
+    img = PILImage.open(input_file)
     original_width, original_height = img.size
 
     # Determine new dimensions
@@ -231,26 +263,22 @@ def resize_image(
 
     resized = img.resize((new_width, new_height), resample_filters[resample.lower()])
 
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-
-    # Determine format from extension
-    ext = output_file.suffix.lower()
-    format_map = {'.jpg': 'JPEG', '.jpeg': 'JPEG', '.png': 'PNG', '.webp': 'WEBP', '.gif': 'GIF', '.bmp': 'BMP'}
-    save_format = format_map.get(ext, img.format or 'PNG')
-
     # Handle transparency when saving to JPEG
-    if save_format == 'JPEG' and resized.mode == 'RGBA':
-        resized = resized.convert('RGB')
+    if output_format == "JPEG" and resized.mode == "RGBA":
+        background = PILImage.new("RGB", resized.size, (255, 255, 255))
+        background.paste(resized, mask=resized.split()[3])
+        resized = background
+    elif output_format == "JPEG" and resized.mode != "RGB":
+        resized = resized.convert("RGB")
 
-    resized.save(output_file, format=save_format)
+    save_kwargs = {"quality": 95} if output_format in ("JPEG", "WEBP") else {}
 
-    return json.dumps({
-        "success": True,
-        "output_path": str(output_file),
+    result = save_image_to_path(resized, output_file, output_format, **save_kwargs)
+    result.update({
         "original_dimensions": {"width": original_width, "height": original_height},
-        "new_dimensions": {"width": new_width, "height": new_height},
         "resample": resample
-    }, indent=2)
+    })
+    return json.dumps(result, indent=2)
 
 
 @mcp.tool()
@@ -264,58 +292,47 @@ def convert_format(
     Output format is determined by the output_path extension.
 
     Args:
-        input_path: Path to input image
-        output_path: Path to save converted image (extension determines format)
+        input_path: Absolute path to input image
+        output_path: Absolute path to save converted image (extension determines format)
         quality: Quality for lossy formats like JPEG/WebP 1-100 (default: 95)
     """
-    input_file = Path(input_path).resolve()
-    output_file = Path(output_path).resolve()
+    input_file, err = validate_absolute_path(input_path, "input_path")
+    if err:
+        return err
+    output_file, err = validate_absolute_path(output_path, "output_path")
+    if err:
+        return err
 
     if not input_file.exists():
         return json.dumps({"error": f"Input file not found: {input_file}"})
 
-    ext = output_file.suffix.lower()
-    format_map = {
-        '.jpg': 'JPEG',
-        '.jpeg': 'JPEG',
-        '.png': 'PNG',
-        '.webp': 'WEBP',
-        '.gif': 'GIF',
-        '.bmp': 'BMP'
-    }
+    # Determine output format from extension
+    ext_to_format = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".webp": "WEBP", ".gif": "GIF", ".bmp": "BMP"}
+    output_ext = output_file.suffix.lower()
+    output_format = ext_to_format.get(output_ext)
 
-    if ext not in format_map:
-        return json.dumps({"error": f"Unsupported format: {ext}. Use: {list(format_map.keys())}"})
+    if output_format is None:
+        return json.dumps({"error": f"Unsupported output extension: {output_ext}. Use: .png, .jpg, .jpeg, .webp, .gif, .bmp"})
 
-    output_format = format_map[ext]
-
-    img = Image.open(input_file)
+    img = PILImage.open(input_file)
     original_format = img.format
 
     # Handle transparency when converting to non-transparent formats
-    if output_format in ('JPEG', 'BMP') and img.mode == 'RGBA':
+    if output_format in ("JPEG", "BMP") and img.mode == "RGBA":
         # Composite onto white background
-        background = Image.new('RGB', img.size, (255, 255, 255))
+        background = PILImage.new("RGB", img.size, (255, 255, 255))
         background.paste(img, mask=img.split()[3])
         img = background
-    elif output_format == 'JPEG' and img.mode != 'RGB':
-        img = img.convert('RGB')
-
-    output_file.parent.mkdir(parents=True, exist_ok=True)
+    elif output_format == "JPEG" and img.mode != "RGB":
+        img = img.convert("RGB")
 
     save_kwargs = {}
-    if output_format in ('JPEG', 'WEBP'):
-        save_kwargs['quality'] = quality
+    if output_format in ("JPEG", "WEBP"):
+        save_kwargs["quality"] = quality
 
-    img.save(output_file, format=output_format, **save_kwargs)
-
-    return json.dumps({
-        "success": True,
-        "output_path": str(output_file),
-        "original_format": original_format,
-        "new_format": output_format,
-        "file_size_bytes": output_file.stat().st_size
-    }, indent=2)
+    result = save_image_to_path(img, output_file, output_format, **save_kwargs)
+    result["original_format"] = original_format
+    return json.dumps(result, indent=2)
 
 
 def main():
