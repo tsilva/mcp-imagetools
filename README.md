@@ -7,7 +7,7 @@
   [![MCP](https://img.shields.io/badge/MCP-1.2+-green.svg)](https://modelcontextprotocol.io)
   [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-  **🖼️ Image processing tools for Claude Code — chromakey, resize, compress, and convert images via MCP**
+  **🖼️ Image processing tools for Claude Code — chromakey, resize, compress, and convert images via MCP 🔧**
 
   [Tools](#tools) · [Quick Start](#quick-start) · [Usage](#usage)
 </div>
