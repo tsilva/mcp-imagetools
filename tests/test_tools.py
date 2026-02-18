@@ -1,4 +1,4 @@
-"""Tests for mcp-image-tools."""
+"""Tests for mcp-imagetools."""
 
 import json
 import tempfile
@@ -31,24 +31,24 @@ class TestUtils:
     """Test utility functions."""
 
     def test_parse_hex_color_with_hash(self):
-        from mcp_image_tools.utils import parse_hex_color
+        from mcp_imagetools.utils import parse_hex_color
         assert parse_hex_color("#00FF00") == (0, 255, 0)
 
     def test_parse_hex_color_without_hash(self):
-        from mcp_image_tools.utils import parse_hex_color
+        from mcp_imagetools.utils import parse_hex_color
         assert parse_hex_color("FF0000") == (255, 0, 0)
 
     def test_parse_hex_color_invalid(self):
-        from mcp_image_tools.utils import parse_hex_color
+        from mcp_imagetools.utils import parse_hex_color
         with pytest.raises(ValueError):
             parse_hex_color("invalid")
 
     def test_color_distance_identical(self):
-        from mcp_image_tools.utils import color_distance
+        from mcp_imagetools.utils import color_distance
         assert color_distance((0, 0, 0), (0, 0, 0)) == 0
 
     def test_color_distance_different(self):
-        from mcp_image_tools.utils import color_distance
+        from mcp_imagetools.utils import color_distance
         # Black to white should be sqrt(255^2 * 3) ≈ 441.67
         distance = color_distance((0, 0, 0), (255, 255, 255))
         assert 441 < distance < 442
@@ -58,7 +58,7 @@ class TestChromakeyToTransparent:
     """Test chromakey transparency conversion."""
 
     def test_converts_green_to_transparent(self):
-        from mcp_image_tools.server import chromakey_to_transparent
+        from mcp_imagetools.server import chromakey_to_transparent
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
@@ -84,7 +84,7 @@ class TestChromakeyToTransparent:
             assert pixels[50, 50][3] == 255
 
     def test_custom_key_color(self):
-        from mcp_image_tools.server import chromakey_to_transparent
+        from mcp_imagetools.server import chromakey_to_transparent
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
@@ -99,7 +99,7 @@ class TestChromakeyToTransparent:
             assert output_path.exists()
 
     def test_file_not_found(self):
-        from mcp_image_tools.server import chromakey_to_transparent
+        from mcp_imagetools.server import chromakey_to_transparent
 
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "output.png"
@@ -112,7 +112,7 @@ class TestGetImageMetadata:
     """Test image metadata extraction."""
 
     def test_gets_png_metadata(self):
-        from mcp_image_tools.server import get_image_metadata
+        from mcp_imagetools.server import get_image_metadata
 
         with tempfile.TemporaryDirectory() as tmpdir:
             img_path = Path(tmpdir) / "test.png"
@@ -125,7 +125,7 @@ class TestGetImageMetadata:
             assert result["height"] == 150
 
     def test_detects_transparency(self):
-        from mcp_image_tools.server import get_image_metadata
+        from mcp_imagetools.server import get_image_metadata
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create image with transparency
@@ -138,7 +138,7 @@ class TestGetImageMetadata:
             assert result["has_transparency"] is True
 
     def test_file_not_found(self):
-        from mcp_image_tools.server import get_image_metadata
+        from mcp_imagetools.server import get_image_metadata
 
         result = json.loads(get_image_metadata("/nonexistent/image.png"))
         assert "error" in result
@@ -148,7 +148,7 @@ class TestResizeImage:
     """Test image resizing."""
 
     def test_resize_by_width(self):
-        from mcp_image_tools.server import resize_image
+        from mcp_imagetools.server import resize_image
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
@@ -167,7 +167,7 @@ class TestResizeImage:
             assert img.size == (100, 50)
 
     def test_resize_by_scale(self):
-        from mcp_image_tools.server import resize_image
+        from mcp_imagetools.server import resize_image
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
@@ -184,7 +184,7 @@ class TestResizeImage:
             assert img.size == (200, 200)
 
     def test_resize_to_jpeg(self):
-        from mcp_image_tools.server import resize_image
+        from mcp_imagetools.server import resize_image
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
@@ -198,7 +198,7 @@ class TestResizeImage:
             assert output_path.exists()
 
     def test_file_not_found(self):
-        from mcp_image_tools.server import resize_image
+        from mcp_imagetools.server import resize_image
 
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "output.png"
@@ -211,7 +211,7 @@ class TestConvertFormat:
     """Test format conversion."""
 
     def test_png_to_jpeg(self):
-        from mcp_image_tools.server import convert_format
+        from mcp_imagetools.server import convert_format
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
@@ -228,7 +228,7 @@ class TestConvertFormat:
             assert img.format == "JPEG"
 
     def test_handles_transparency_to_jpeg(self):
-        from mcp_image_tools.server import convert_format
+        from mcp_imagetools.server import convert_format
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
@@ -245,7 +245,7 @@ class TestConvertFormat:
             assert output_path.exists()
 
     def test_invalid_format(self):
-        from mcp_image_tools.server import convert_format
+        from mcp_imagetools.server import convert_format
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
@@ -262,7 +262,7 @@ class TestCompressPng:
     """Test PNG compression."""
 
     def test_compress_saves_to_output(self):
-        from mcp_image_tools.server import compress_png
+        from mcp_imagetools.server import compress_png
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"
@@ -281,7 +281,7 @@ class TestCompressPng:
             assert img.format == "PNG"
 
     def test_file_not_found(self):
-        from mcp_image_tools.server import compress_png
+        from mcp_imagetools.server import compress_png
 
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "output.png"
@@ -294,42 +294,42 @@ class TestAbsolutePathValidation:
     """Test that all tools require absolute paths."""
 
     def test_chromakey_rejects_relative_input(self):
-        from mcp_image_tools.server import chromakey_to_transparent
+        from mcp_imagetools.server import chromakey_to_transparent
         result = chromakey_to_transparent("relative/input.png", "/absolute/output.png")
         metadata = json.loads(result)
         assert "error" in metadata
         assert "absolute path" in metadata["error"]
 
     def test_chromakey_rejects_relative_output(self):
-        from mcp_image_tools.server import chromakey_to_transparent
+        from mcp_imagetools.server import chromakey_to_transparent
         result = chromakey_to_transparent("/absolute/input.png", "relative/output.png")
         metadata = json.loads(result)
         assert "error" in metadata
         assert "absolute path" in metadata["error"]
 
     def test_compress_png_rejects_relative_paths(self):
-        from mcp_image_tools.server import compress_png
+        from mcp_imagetools.server import compress_png
         result = compress_png("relative/input.png", "/absolute/output.png")
         metadata = json.loads(result)
         assert "error" in metadata
         assert "absolute path" in metadata["error"]
 
     def test_get_image_metadata_rejects_relative_path(self):
-        from mcp_image_tools.server import get_image_metadata
+        from mcp_imagetools.server import get_image_metadata
         result = get_image_metadata("relative/image.png")
         metadata = json.loads(result)
         assert "error" in metadata
         assert "absolute path" in metadata["error"]
 
     def test_resize_image_rejects_relative_paths(self):
-        from mcp_image_tools.server import resize_image
+        from mcp_imagetools.server import resize_image
         result = resize_image("relative/input.png", "/absolute/output.png", width=100)
         metadata = json.loads(result)
         assert "error" in metadata
         assert "absolute path" in metadata["error"]
 
     def test_convert_format_rejects_relative_paths(self):
-        from mcp_image_tools.server import convert_format
+        from mcp_imagetools.server import convert_format
         result = convert_format("relative/input.png", "/absolute/output.jpg")
         metadata = json.loads(result)
         assert "error" in metadata
@@ -340,7 +340,7 @@ class TestSameInputOutputPath:
     """Test that tools work when input and output paths are the same."""
 
     def test_resize_image_same_path(self):
-        from mcp_image_tools.server import resize_image
+        from mcp_imagetools.server import resize_image
 
         with tempfile.TemporaryDirectory() as tmpdir:
             img_path = Path(tmpdir) / "image.png"
@@ -361,7 +361,7 @@ class TestSameInputOutputPath:
             assert img.size == (100, 50)
 
     def test_convert_format_same_path_png(self):
-        from mcp_image_tools.server import convert_format
+        from mcp_imagetools.server import convert_format
 
         with tempfile.TemporaryDirectory() as tmpdir:
             img_path = Path(tmpdir) / "image.png"
@@ -378,7 +378,7 @@ class TestSameInputOutputPath:
             assert img_path.exists()
 
     def test_chromakey_same_path(self):
-        from mcp_image_tools.server import chromakey_to_transparent
+        from mcp_imagetools.server import chromakey_to_transparent
 
         with tempfile.TemporaryDirectory() as tmpdir:
             img_path = Path(tmpdir) / "image.png"
@@ -401,7 +401,7 @@ class TestSameInputOutputPath:
             assert pixels[0, 0][3] == 0
 
     def test_compress_png_same_path(self):
-        from mcp_image_tools.server import compress_png
+        from mcp_imagetools.server import compress_png
 
         with tempfile.TemporaryDirectory() as tmpdir:
             img_path = Path(tmpdir) / "image.png"
@@ -423,7 +423,7 @@ class TestSameInputOutputPath:
 
     def test_same_path_preserves_content_on_success(self):
         """Verify that same-path operations preserve expected content."""
-        from mcp_image_tools.server import resize_image
+        from mcp_imagetools.server import resize_image
 
         with tempfile.TemporaryDirectory() as tmpdir:
             img_path = Path(tmpdir) / "image.png"
@@ -449,7 +449,7 @@ class TestWorkflow:
 
     def test_resize_then_convert(self):
         """Test: resize_image → convert_format (chaining)."""
-        from mcp_image_tools.server import resize_image, convert_format
+        from mcp_imagetools.server import resize_image, convert_format
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"

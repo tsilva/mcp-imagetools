@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="logo.png" alt="mcp-image-tools" width="512"/>
+  <img src="logo.png" alt="mcp-imagetools" width="512"/>
 
-  # mcp-image-tools
+  # mcp-imagetools
 
   [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
   [![MCP](https://img.shields.io/badge/MCP-1.2+-green.svg)](https://modelcontextprotocol.io)
@@ -24,7 +24,7 @@
 
 ```bash
 # Add to Claude Code
-claude mcp add image-tools -- uv run --directory /path/to/mcp-image-tools mcp-image-tools
+claude mcp add image-tools -- uv run --directory /path/to/mcp-imagetools mcp-imagetools
 ```
 
 ## Tools
@@ -47,8 +47,8 @@ claude mcp add image-tools -- uv run --directory /path/to/mcp-image-tools mcp-im
 ### From Source
 
 ```bash
-git clone https://github.com/tsilva/mcp-image-tools.git
-cd mcp-image-tools
+git clone https://github.com/tsilva/mcp-imagetools.git
+cd mcp-imagetools
 uv sync
 ```
 
@@ -56,7 +56,7 @@ uv sync
 
 ```bash
 claude mcp add image-tools --scope user -- \
-  uv run --directory /path/to/mcp-image-tools mcp-image-tools
+  uv run --directory /path/to/mcp-imagetools mcp-imagetools
 ```
 
 ## Usage
@@ -163,7 +163,7 @@ uv sync --all-extras
 uv run pytest tests/ -v
 
 # Run server locally
-uv run mcp-image-tools
+uv run mcp-imagetools
 ```
 
 ## License

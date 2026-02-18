@@ -28,13 +28,13 @@ convert_format("/path/to/thumb.png", "/path/to/thumb.jpg")
 ```bash
 uv sync                       # Install dependencies
 uv run pytest tests/ -v       # Run tests
-uv run mcp-image-tools        # Run server
+uv run mcp-imagetools        # Run server
 ```
 
 ## Adding to Claude Code
 
 ```bash
-claude mcp add image-tools --scope user -- uv run --directory /path/to/mcp-image-tools mcp-image-tools
+claude mcp add image-tools --scope user -- uv run --directory /path/to/mcp-imagetools mcp-imagetools
 ```
 
 ## Chromakey Algorithm
