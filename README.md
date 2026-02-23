@@ -14,6 +14,8 @@
 
 ## Features
 
+[![CI](https://github.com/tsilva/mcp-imagetools/actions/workflows/release.yml/badge.svg)](https://github.com/tsilva/mcp-imagetools/actions/workflows/release.yml)
+
 - ✨ **Chromakey to Transparent** — Professional green screen removal with graduated alpha blending
 - 📐 **Resize** — Scale by dimensions or factor with aspect ratio control and Lanczos resampling
 - 🗜️ **Compress** — PNG optimization via pngquant (graceful degradation if not installed)
