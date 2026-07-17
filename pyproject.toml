@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0.0"]
+dev = ["pytest>=9.0.3"]
 
 [project.scripts]
 mcp-imagetools = "mcp_imagetools:main"
