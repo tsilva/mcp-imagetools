@@ -25,8 +25,11 @@ jobs:
       - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
         with:
           cache: true
-      - run: uv sync --frozen
-      - run: uv run --frozen --with pytest pytest
+      - run: uv lock --check --no-config --exclude-newer "7 days"
+      - run: uv sync --frozen --extra dev --no-config
+      - run: uv audit --frozen --no-config
+      - run: uv run --no-sync ruff check .
+      - run: uv run --no-sync pytest -q
 
   pii-scan:
     runs-on: ubuntu-latest
@@ -66,7 +69,7 @@ jobs:
           cache: true
       - name: Build package
         if: steps.check-version.outputs.tag_exists == 'false'
-        run: uv build
+        run: uv build --no-config
       - name: Store package artifacts
         if: steps.check-version.outputs.tag_exists == 'false'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
