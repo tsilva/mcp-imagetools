@@ -8,7 +8,9 @@ import pytest
 from PIL import Image as PILImage
 
 
-def create_test_image(path: Path, color: tuple = (0, 255, 0), size: tuple = (100, 100), mode: str = 'RGB'):
+def create_test_image(
+    path: Path, color: tuple = (0, 255, 0), size: tuple = (100, 100), mode: str = "RGB"
+):
     """Create a solid color test image."""
     img = PILImage.new(mode, size, color)
     img.save(path)
@@ -17,7 +19,7 @@ def create_test_image(path: Path, color: tuple = (0, 255, 0), size: tuple = (100
 
 def create_chromakey_test_image(path: Path):
     """Create an image with green background and red foreground."""
-    img = PILImage.new('RGB', (100, 100), (0, 255, 0))  # Green background
+    img = PILImage.new("RGB", (100, 100), (0, 255, 0))  # Green background
     # Draw a red square in the center
     pixels = img.load()
     for y in range(30, 70):
@@ -32,23 +34,28 @@ class TestUtils:
 
     def test_parse_hex_color_with_hash(self):
         from mcp_imagetools.utils import parse_hex_color
+
         assert parse_hex_color("#00FF00") == (0, 255, 0)
 
     def test_parse_hex_color_without_hash(self):
         from mcp_imagetools.utils import parse_hex_color
+
         assert parse_hex_color("FF0000") == (255, 0, 0)
 
     def test_parse_hex_color_invalid(self):
         from mcp_imagetools.utils import parse_hex_color
+
         with pytest.raises(ValueError):
             parse_hex_color("invalid")
 
     def test_color_distance_identical(self):
         from mcp_imagetools.utils import color_distance
+
         assert color_distance((0, 0, 0), (0, 0, 0)) == 0
 
     def test_color_distance_different(self):
         from mcp_imagetools.utils import color_distance
+
         # Black to white should be sqrt(255^2 * 3) ≈ 441.67
         distance = color_distance((0, 0, 0), (255, 255, 255))
         assert 441 < distance < 442
@@ -74,7 +81,7 @@ class TestChromakeyToTransparent:
             # Verify output file exists and has correct content
             assert output_path.exists()
             img = PILImage.open(output_path)
-            assert img.mode == 'RGBA'
+            assert img.mode == "RGBA"
 
             # Check that green pixels became transparent
             pixels = img.load()
@@ -92,7 +99,9 @@ class TestChromakeyToTransparent:
             # Create blue background image
             create_test_image(input_path, color=(0, 0, 255))
 
-            result = chromakey_to_transparent(str(input_path), str(output_path), key_color="#0000FF")
+            result = chromakey_to_transparent(
+                str(input_path), str(output_path), key_color="#0000FF"
+            )
 
             metadata = json.loads(result)
             assert metadata["key_color"] == "#0000FF"
@@ -130,7 +139,7 @@ class TestGetImageMetadata:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create image with transparency
             img_path = Path(tmpdir) / "transparent.png"
-            img = PILImage.new('RGBA', (50, 50), (255, 0, 0, 128))
+            img = PILImage.new("RGBA", (50, 50), (255, 0, 0, 128))
             img.save(img_path)
 
             result = json.loads(get_image_metadata(str(img_path)))
@@ -234,7 +243,7 @@ class TestConvertFormat:
             input_path = Path(tmpdir) / "input.png"
             output_path = Path(tmpdir) / "output.jpg"
             # Create RGBA image with transparency
-            img = PILImage.new('RGBA', (50, 50), (255, 0, 0, 128))
+            img = PILImage.new("RGBA", (50, 50), (255, 0, 0, 128))
             img.save(input_path)
 
             result = convert_format(str(input_path), str(output_path))
@@ -295,6 +304,7 @@ class TestAbsolutePathValidation:
 
     def test_chromakey_rejects_relative_input(self):
         from mcp_imagetools.server import chromakey_to_transparent
+
         result = chromakey_to_transparent("relative/input.png", "/absolute/output.png")
         metadata = json.loads(result)
         assert "error" in metadata
@@ -302,6 +312,7 @@ class TestAbsolutePathValidation:
 
     def test_chromakey_rejects_relative_output(self):
         from mcp_imagetools.server import chromakey_to_transparent
+
         result = chromakey_to_transparent("/absolute/input.png", "relative/output.png")
         metadata = json.loads(result)
         assert "error" in metadata
@@ -309,6 +320,7 @@ class TestAbsolutePathValidation:
 
     def test_compress_png_rejects_relative_paths(self):
         from mcp_imagetools.server import compress_png
+
         result = compress_png("relative/input.png", "/absolute/output.png")
         metadata = json.loads(result)
         assert "error" in metadata
@@ -316,6 +328,7 @@ class TestAbsolutePathValidation:
 
     def test_get_image_metadata_rejects_relative_path(self):
         from mcp_imagetools.server import get_image_metadata
+
         result = get_image_metadata("relative/image.png")
         metadata = json.loads(result)
         assert "error" in metadata
@@ -323,6 +336,7 @@ class TestAbsolutePathValidation:
 
     def test_resize_image_rejects_relative_paths(self):
         from mcp_imagetools.server import resize_image
+
         result = resize_image("relative/input.png", "/absolute/output.png", width=100)
         metadata = json.loads(result)
         assert "error" in metadata
@@ -330,6 +344,7 @@ class TestAbsolutePathValidation:
 
     def test_convert_format_rejects_relative_paths(self):
         from mcp_imagetools.server import convert_format
+
         result = convert_format("relative/input.png", "/absolute/output.jpg")
         metadata = json.loads(result)
         assert "error" in metadata
@@ -395,7 +410,7 @@ class TestSameInputOutputPath:
 
             # Verify the file was actually modified with transparency
             img = PILImage.open(img_path)
-            assert img.mode == 'RGBA'
+            assert img.mode == "RGBA"
             pixels = img.load()
             # Corner should be transparent (was green)
             assert pixels[0, 0][3] == 0
@@ -449,7 +464,7 @@ class TestWorkflow:
 
     def test_resize_then_convert(self):
         """Test: resize_image → convert_format (chaining)."""
-        from mcp_imagetools.server import resize_image, convert_format
+        from mcp_imagetools.server import convert_format, resize_image
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.png"

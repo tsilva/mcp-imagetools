@@ -15,10 +15,10 @@ def parse_hex_color(hex_color: str) -> tuple[int, int, int]:
     Returns:
         RGB tuple (r, g, b) with values 0-255
     """
-    hex_color = hex_color.lstrip('#')
+    hex_color = hex_color.lstrip("#")
     if len(hex_color) != 6:
         raise ValueError(f"Invalid hex color: {hex_color}")
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
 
 def color_distance(c1: tuple[int, int, int], c2: tuple[int, int, int]) -> float:
@@ -31,11 +31,7 @@ def color_distance(c1: tuple[int, int, int], c2: tuple[int, int, int]) -> float:
     Returns:
         Distance value (0 = identical, ~441 = max for black/white)
     """
-    return math.sqrt(
-        (c1[0] - c2[0])**2 +
-        (c1[1] - c2[1])**2 +
-        (c1[2] - c2[2])**2
-    )
+    return math.sqrt((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2)
 
 
 def is_pngquant_available() -> bool:
@@ -59,15 +55,21 @@ def run_pngquant(image_path: Path, quality: int = 80) -> tuple[int, int]:
         return original_size, original_size
 
     quality_min = max(0, quality - 20)
-    result = subprocess.run([
-        "pngquant",
-        "--quality", f"{quality_min}-{quality}",
-        "--speed", "1",
-        "--strip",
-        "--force",
-        "--output", str(image_path),
-        str(image_path)
-    ], capture_output=True)
+    result = subprocess.run(
+        [
+            "pngquant",
+            "--quality",
+            f"{quality_min}-{quality}",
+            "--speed",
+            "1",
+            "--strip",
+            "--force",
+            "--output",
+            str(image_path),
+            str(image_path),
+        ],
+        capture_output=True,
+    )
 
     # Return codes: 0=success, 99=quality too low (still success)
     if result.returncode not in (0, 99):
