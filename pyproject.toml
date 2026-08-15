@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "tsilva" }]
 dependencies = [
-    "mcp[cli]>=1.29,<2",
+    "mcp[cli]>=2.0.0,<3",
     "Pillow>=12.3,<13",
 ]
 
