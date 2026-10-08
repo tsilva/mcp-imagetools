@@ -1,10 +1,10 @@
-<div align="center">
+<p align="center">
   <img src="https://raw.githubusercontent.com/tsilva/mcp-imagetools/main/logo.png" alt="mcp-imagetools" width="420" />
-
-  # mcp-imagetools
-
-  **🖼️ Image processing tools for Claude Code — chromakey, resize, compress, and convert images via MCP 🔧**
-</div>
+  <br />
+  <!-- repo-tagline:start -->
+  <strong>🖼️ Resize, compress, convert, and chromakey images through MCP 🔧</strong>
+  <!-- repo-tagline:end -->
+</p>
 
 mcp-imagetools is a Python MCP server that exposes local image-processing tools to Claude Code and other MCP clients. It handles chromakey transparency, resizing, PNG compression, format conversion, and metadata inspection through file-based tool calls.
 
