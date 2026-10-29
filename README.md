@@ -67,7 +67,9 @@ uv run mcp-imagetools         # start the MCP server
 
 ## Notes
 
-- Python 3.10 or newer is required.
+The committed lock includes patched MCP, Pillow and certificate-bundle releases. Validate dependency changes with `uv sync --frozen --extra dev`, `uv audit --frozen`, `uv run --no-sync ruff check .`, and `uv run --no-sync pytest -q`. The seven-day release hold and existing bad-package exclusions remain enabled.
+
+- Python 3.11 or newer is required.
 - All `input_path`, `output_path`, and `image_path` values must be absolute paths.
 - `pngquant` is optional. Without it, `compress_png` returns the original PNG and includes a note in the JSON response.
 - No environment variables are required for basic operation. `.env.example` only documents the optional `UV_CACHE_DIR`.

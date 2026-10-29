@@ -3,11 +3,11 @@ name = "mcp-imagetools"
 version = "0.1.0"
 description = "MCP server for image processing tools (chromakey, resize, compress, convert)"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{ name = "tsilva" }]
 dependencies = [
-    "mcp[cli]>=1.29,<2",
-    "Pillow>=12.3,<13",
+    "mcp[cli]>=1.30,<2",
+    "Pillow>=13,<14",
 ]
 
 [project.optional-dependencies]
