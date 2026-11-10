@@ -25,9 +25,9 @@ jobs:
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           cache: true
-      - run: uv lock --check --no-config --exclude-newer "7 days"
-      - run: uv sync --frozen --extra dev --no-config
-      - run: uv audit --frozen --no-config
+      - run: uv lock --check --exclude-newer "7 days"
+      - run: uv sync --frozen --extra dev
+      - run: uv audit --frozen
       - run: uv run --no-sync ruff check .
       - run: uv run --no-sync pytest -q
 
@@ -69,7 +69,7 @@ jobs:
           cache: true
       - name: Build package
         if: steps.check-version.outputs.tag_exists == 'false'
-        run: uv build --no-config
+        run: uv build
       - name: Store package artifacts
         if: steps.check-version.outputs.tag_exists == 'false'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

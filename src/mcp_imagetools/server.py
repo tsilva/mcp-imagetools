@@ -8,12 +8,12 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator, Optional
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from PIL import Image as PILImage
 
 from .utils import color_distance, is_pngquant_available, parse_hex_color, run_pngquant
 
-mcp = FastMCP("mcp-image-tools")
+mcp = MCPServer("mcp-image-tools")
 
 
 def validate_absolute_path(path: str, param_name: str) -> tuple[Path, str | None]:
