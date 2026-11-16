@@ -1,3 +1,10 @@
+<!-- archive-repo:deprecation-notice:start -->
+> [!WARNING]
+> **Deprecated**
+>
+> This project is no longer maintained. Agents can now perform these image-processing tasks directly with local scripts, so a dedicated MCP server is no longer needed.
+<!-- archive-repo:deprecation-notice:end -->
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/tsilva/mcp-imagetools/main/logo.png" alt="mcp-imagetools" width="420" />
   <br />
